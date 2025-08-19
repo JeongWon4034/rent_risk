@@ -68,4 +68,4 @@ elif page == "GPT 인터페이스":
     <h1 style="font-size:2.2rem; font-weight:700;">🤖 GPT 대화 인터페이스</h1>
     """, unsafe_allow_html=True)
 
-    st.info("여기는 GPT 페이지입니다. 추후 기능이 추가될 예정입니다.")
+    st.info("여기는 GPT 페이지 - 추후 기능 추가 예정")
