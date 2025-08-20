@@ -32,9 +32,6 @@ if menu == "📍 지도 보기":
         # ✅ 여기서부터는 반드시 들여쓰기 4칸
         df = pd.read_csv("dataset_14.csv")
 
-        # 컬럼 확인
-        st.write("데이터셋 컬럼:", df.columns.tolist())
-
         # 위도/경도 숫자로 변환 (NaN은 드롭)
         df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
         df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
