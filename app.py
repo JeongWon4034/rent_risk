@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import MarkerCluster   # 추가
+from folium.plugins import MarkerCluster
 
 # --- 2. 데이터 불러오기 (깃허브 raw URL) ---
 url = "https://raw.githubusercontent.com/JeongWon4034/rent_risk/main/dataset_12.csv"
@@ -26,13 +26,28 @@ if page == "지도 보기":
     # 마커 클러스터 추가
     marker_cluster = MarkerCluster().add_to(m)
 
-    # 점 표시 (클러스터에 추가)
-    for _, row in df.iterrows():
-        popup_text = f"<b>{row['단지명']}</b><br>전세가율: {row['전세가율']}%<br>보증금: {row['보증금.만원.']}만원"
+    # 1. 동일 좌표는 한 번만 찍기
+    unique_points = df.drop_duplicates(subset=["위도", "경도"])
+
+    # 2. 마커 표시 (같은 좌표 그룹 묶어서 팝업)
+    for _, row in unique_points.iterrows():
+        # 같은 좌표에 해당하는 모든 매물 묶기
+        group = df[(df["위도"] == row["위도"]) & (df["경도"] == row["경도"])]
+
+        # 팝업 HTML 생성
+        popup_html = f"<b>{row['단지명']}</b><br>매물 {len(group)}건<br><hr>"
+        for _, r in group.iterrows():
+            popup_html += (
+                f"전세가율: {r['전세가율']}% | "
+                f"보증금: {r['보증금.만원.']}만원 | "
+                f"계약유형: {r['계약유형']}<br>"
+            )
+
+        # 마커 추가
         folium.Marker(
             location=[row["위도"], row["경도"]],
-            popup=popup_text,
-            tooltip=row["단지명"]
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=f"{row['단지명']} (매물 {len(group)}건)"
         ).add_to(marker_cluster)
 
     # 지도 출력
