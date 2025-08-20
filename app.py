@@ -2,12 +2,15 @@
 import streamlit as st
 import pandas as pd
 import folium
+from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
-from folium.plugins import MarkerCluster   # 추가
 
 # --- 2. 데이터 불러오기 (깃허브 raw URL) ---
 url = "https://raw.githubusercontent.com/JeongWon4034/rent_risk/main/dataset_12.csv"
 df = pd.read_csv(url)
+
+# 위도/경도 없는 행 제거
+df = df.dropna(subset=["위도", "경도"])
 
 # --- 3. 사이드바 메뉴 ---
 st.sidebar.title("📌 메뉴")
@@ -19,24 +22,30 @@ if page == "지도 보기":
     <h1 style="font-size:2.2rem; font-weight:700;">🏠 전세사기 위험 매물 지도</h1>
     """, unsafe_allow_html=True)
 
-    # 지도 중심 (수원시청)
+    # 지도 중심 (수원시청 기준)
     map_center = [37.2636, 127.0286]
     m = folium.Map(location=map_center, zoom_start=12, tiles="CartoDB positron")
 
-    # 마커 클러스터 추가
+    # MarkerCluster 생성
     marker_cluster = MarkerCluster().add_to(m)
 
-    # 점 표시 (클러스터에 추가)
-    for _, row in df.iterrows():
-        # 같은 좌표에 해당하는 모든 매물 묶기
+    # 좌표 기준으로 unique 처리
+    unique_points = df.drop_duplicates(subset=["위도", "경도"])
+
+    # 점 찍기
+    for _, row in unique_points.iterrows():
+        # 같은 좌표 묶기 (소수점 6자리 기준)
         group = df[(df["위도"].round(6) == round(row["위도"], 6)) &
                    (df["경도"].round(6) == round(row["경도"], 6))]
 
-
-        # 팝업 HTML 생성
+        # 팝업 HTML
         popup_html = f"<b>{row['단지명']}</b><br>매물 {len(group)}건<br><hr>"
         for _, r in group.iterrows():
-            popup_html += f"전세가율: {r['전세가율']}% | 보증금: {r['보증금.만원.']}만원 | 계약유형: {r['계약유형']}<br>"
+            popup_html += (
+                f"전세가율: {r['전세가율']}% | "
+                f"보증금: {r['보증금.만원.']}만원 | "
+                f"계약유형: {r['계약유형']}<br>"
+            )
 
         # 마커 추가
         folium.Marker(
@@ -44,10 +53,11 @@ if page == "지도 보기":
             popup=folium.Popup(popup_html, max_width=300),
             tooltip=f"{row['단지명']} (매물 {len(group)}건)"
         ).add_to(marker_cluster)
+
     # 지도 출력
     st_data = st_folium(m, width=800, height=600)
 
-# --- 5. GPT 페이지 (제목만) ---
+# --- 5. GPT 페이지 ---
 elif page == "GPT 인터페이스":
     st.markdown("""
     <h1 style="font-size:2.2rem; font-weight:700;">🤖 GPT 대화 인터페이스</h1>
