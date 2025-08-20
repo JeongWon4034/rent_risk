@@ -7,7 +7,11 @@ from streamlit_folium import st_folium
 import plotly.express as px
 
 # --- 2. Page Configuration ---
-st.set_page_config(layout="wide", page_title="수원시 전세사기 위험 매물 지도", page_icon="💰")
+st.set_page_config(
+    layout="wide", 
+    page_title="수원시 전세사기 위험 매물 지도", 
+    page_icon="💰"
+)
 
 # --- 3. Premium Header ---
 st.markdown("""
@@ -31,12 +35,26 @@ analysis_mode = st.sidebar.radio(
 @st.cache_data
 def load_data():
     df = pd.read_csv("dataset_14.csv")
+
     # 숫자형 변환
     df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
     df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
-    return df.dropna(subset=["위도", "경도"])
+    df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
+    df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
+
+    # NaN 제거
+    df = df.dropna(subset=["위도", "경도"])
+
+    # 소수점 6자리 반올림으로 중복 좌표 처리
+    df["위도_6"] = df["위도"].round(6)
+    df["경도_6"] = df["경도"].round(6)
+
+    return df
 
 df = load_data()
+
+# ✅ 그룹핑 (지도용)
+grouped = df.groupby(["위도_6", "경도_6"])
 
 # --- 6. Main Content ---
 if analysis_mode == "🏘️ 매물 현황보기":
@@ -49,22 +67,26 @@ if analysis_mode == "🏘️ 매물 현황보기":
     # 📊 종합 리포트
     with tab_report:
         st.subheader("📊 주요 지표 요약")
+
         col1, col2, col3 = st.columns(3)
         with col1: st.metric("총 매물 수", len(df))
         with col2: st.metric("평균 전세가율", f"{df['전세가율'].mean():.2f}%")
         with col3: st.metric("최고 전세가율", f"{df['전세가율'].max():.2f}%")
 
         st.markdown("### 전세가율 분포")
-        fig = px.histogram(df, x="전세가율", nbins=30, title="전세가율 분포 히스토그램")
+        fig = px.histogram(
+            df, x="전세가율", nbins=30, 
+            title="전세가율 분포 히스토그램", 
+            labels={"전세가율": "전세가율 (%)"}
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     # 🗺️ 인터랙티브 맵
     with tab_map:
         st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
+
         # 지도 생성
         m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-
-        # ✅ 여기서 먼저 선언해야 함
         marker_cluster = MarkerCluster().add_to(m)
 
         # 그룹별 마커
@@ -73,7 +95,8 @@ if analysis_mode == "🏘️ 매물 현황보기":
                 continue
 
             info = "<br>".join(
-                f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 | 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+                f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
+                f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
                 for _, row in group.iterrows()
             )
 
@@ -82,18 +105,26 @@ if analysis_mode == "🏘️ 매물 현황보기":
                 popup=info
             ).add_to(marker_cluster)
 
-
+        st_folium(m, width=900, height=600)
 
     # 📄 상세 데이터 조회
     with tab_data:
         st.subheader("📄 상세 데이터 조회 및 다운로드")
+
         cause_filter = st.multiselect(
-            "계약유형 선택", options=df["계약유형"].unique(), default=df["계약유형"].unique()
+            "계약유형 선택", 
+            options=df["계약유형"].unique(), 
+            default=df["계약유형"].unique()
         )
+
         filtered = df[df["계약유형"].isin(cause_filter)]
+
         st.dataframe(filtered, use_container_width=True, height=500)
+
         csv = filtered.to_csv(index=False, encoding="utf-8-sig")
-        st.download_button("📥 CSV 다운로드", csv, "rent_risk_filtered.csv", "text/csv")
+        st.download_button(
+            "📥 CSV 다운로드", csv, "rent_risk_filtered.csv", "text/csv"
+        )
 
 else:  # 🔄 GPT 챗봇 상담
     st.subheader("🔄 GPT 챗봇 상담")
