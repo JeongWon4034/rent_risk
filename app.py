@@ -6,7 +6,7 @@ from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 
 # --- 2. 데이터 불러오기 (깃허브 raw URL) ---
-url = "https://raw.githubusercontent.com/JeongWon4034/rent_risk/main/dataset_12.csv"
+url = "https://raw.githubusercontent.com/JeongWon4034/rent_risk/main/dataset_13.csv"
 df = pd.read_csv(url)
 
 # 위도/경도 없는 행 제거
