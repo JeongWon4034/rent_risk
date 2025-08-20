@@ -5,8 +5,9 @@ import folium
 from streamlit_folium import st_folium
 
 # --- 2. 데이터 불러오기 (깃허브 raw URL) ---
-url = "https://github.com/JeongWon4034/rent_risk/blob/main/dataset_12.csv"
+url = "https://raw.githubusercontent.com/JeongWon4034/rent_risk/main/dataset_12.csv"
 df = pd.read_csv(url)
+
 
 # --- 3. 사이드바 메뉴 ---
 st.sidebar.title("📌 메뉴")
