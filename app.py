@@ -3,11 +3,11 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
+from folium.plugins import MarkerCluster   # 추가
 
 # --- 2. 데이터 불러오기 (깃허브 raw URL) ---
 url = "https://raw.githubusercontent.com/JeongWon4034/rent_risk/main/dataset_12.csv"
 df = pd.read_csv(url)
-
 
 # --- 3. 사이드바 메뉴 ---
 st.sidebar.title("📌 메뉴")
@@ -23,45 +23,20 @@ if page == "지도 보기":
     map_center = [37.2636, 127.0286]
     m = folium.Map(location=map_center, zoom_start=12, tiles="CartoDB positron")
 
-    # 중복 좌표 제거
-    unique_points = df.drop_duplicates(subset=["위도", "경도"])
+    # 마커 클러스터 추가
+    marker_cluster = MarkerCluster().add_to(m)
 
-    # 점 표시
-    for _, row in unique_points.iterrows():
-        popup_text = f"<b>{row['단지명']}</b><br>위도: {row['위도']}<br>경도: {row['경도']}"
-        folium.CircleMarker(
+    # 점 표시 (클러스터에 추가)
+    for _, row in df.iterrows():
+        popup_text = f"<b>{row['단지명']}</b><br>전세가율: {row['전세가율']}%<br>보증금: {row['보증금.만원.']}만원"
+        folium.Marker(
             location=[row["위도"], row["경도"]],
-            radius=6,
-            color="red",
-            fill=True,
-            fill_color="red",
-            fill_opacity=0.6,
             popup=popup_text,
             tooltip=row["단지명"]
-        ).add_to(m)
+        ).add_to(marker_cluster)
 
-    # 지도 출력 + 클릭 이벤트
+    # 지도 출력
     st_data = st_folium(m, width=800, height=600)
-
-    # 사이드바: 매물 정보 표시
-    st.sidebar.markdown("### 📋 선택된 매물 정보")
-
-    if st_data["last_clicked"] is not None:
-        lat = round(st_data["last_clicked"]["lat"], 6)
-        lon = round(st_data["last_clicked"]["lng"], 6)
-
-        selected_group = df[(df["위도"].round(6) == lat) & (df["경도"].round(6) == lon)]
-
-        if not selected_group.empty:
-            danji = selected_group.iloc[0]["단지명"]
-            st.sidebar.write(f"**{danji} 매물 {len(selected_group)}건**")
-
-            for _, r in selected_group.iterrows():
-                st.sidebar.write(
-                    f"- 전세가율: {r['전세가율']} / 보증금: {r['보증금.만원.']} / 계약유형: {r['계약유형']}"
-                )
-        else:
-            st.sidebar.write("해당 좌표의 매물 정보를 찾을 수 없습니다.")
 
 # --- 5. GPT 페이지 (제목만) ---
 elif page == "GPT 인터페이스":
