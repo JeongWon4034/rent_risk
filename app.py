@@ -125,6 +125,38 @@ if analysis_mode == "🏘️ 매물 현황보기":
         st.download_button(
             "📥 CSV 다운로드", csv, "rent_risk_filtered.csv", "text/csv"
         )
+         # 📚 참조 데이터 보기
+    with tab_ref:
+        st.subheader("📚 수원시 관련 참조 데이터")
+
+        files = {
+            "Agencies": "agencies.csv",
+            "Deposit Accidents (2024.07)": "deposit_accidents_202407.csv",
+            "Fraud House Location": "fraud_house_location.csv",
+            "Public Rental Housing": "gondgondimdae.csv",
+            "Housing Status (2025-04-30)": "housing_status_20250430.csv",
+            "Population Mobility (2020-2024)": "pop_mobility_2020_2024.csv",
+            "Population by Dong (2021-2024)": "population_by_dong_2021_2024.csv",
+            "Safety Grade (2021-2024)": "safety_grade_2021_2024.csv",
+        }
+
+        selected = st.selectbox("📂 확인할 참조 데이터셋 선택", list(files.keys()))
+        file_path = files[selected]
+
+        try:
+            df_ref = pd.read_csv(file_path)
+            st.write(f"### {selected}")
+            st.dataframe(df_ref, use_container_width=True, height=500)
+
+            csv = df_ref.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button(
+                f"📥 {selected} 다운로드",
+                csv,
+                file_name=file_path,
+                mime="text/csv"
+            )
+        except Exception as e:
+            st.error(f"파일을 불러올 수 없습니다: {e}")
 
 else:  # 🔄 GPT 챗봇 상담
     st.subheader("🔄 GPT 챗봇 상담")
