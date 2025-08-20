@@ -55,7 +55,7 @@ if menu == "📍 지도 보기":
 
     st_folium(m, width=900, height=600)
 
-    except FileNotFoundError:
+except FileNotFoundError:
         st.error("❌ dataset_14.csv 파일을 찾을 수 없습니다. 앱 폴더에 있는지 확인해주세요.")
 
 # -------------------
