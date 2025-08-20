@@ -27,45 +27,47 @@ menu = st.sidebar.radio(
 # -------------------
 if menu == "📍 지도 보기":
     st.title("📍 수원시 전세사기 위험 매물 지도")
-
     try:
-        df = pd.read_csv("dataset_14.csv")
+    df = pd.read_csv("dataset_14.csv")
 
-        # 데이터 미리보기
-        with st.expander("데이터 미리보기"):
-            st.dataframe(df.head())
+    # 컬럼 확인
+    st.write("데이터셋 컬럼:", df.columns.tolist())
 
-        # 지도 생성
-        m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-        marker_cluster = MarkerCluster().add_to(m)
+    # 위도/경도 숫자로 변환 (NaN은 드롭)
+    df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
+    df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
+    df = df.dropna(subset=["위도", "경도"])
 
-        # ✅ 위경도 6자리 반올림
-        df["위도_6"] = df["위도"].round(6)
-        df["경도_6"] = df["경도"].round(6)
+    # 소수점 6자리 반올림
+    df["위도_6"] = df["위도"].round(6)
+    df["경도_6"] = df["경도"].round(6)
 
-        # ✅ 좌표 그룹핑
-        grouped = df.groupby(["위도_6", "경도_6"])
+    # 그룹핑
+    grouped = df.groupby(["위도_6", "경도_6"])
 
-        # ✅ 그룹별 마커 생성
-        for (lat, lon), group in grouped:
-            info = ""
-            for _, row in group.iterrows():
-                info += (
-                    f"<b>{row['단지명']}</b> | "
-                    f"보증금: {row['보증금.만원.']}만원 | "
-                    f"전세가율: {row['전세가율']}% | "
-                    f"계약유형: {row['계약유형']}<br>"
-                )
+    # 지도 생성
+    m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+    marker_cluster = MarkerCluster().add_to(m)
 
-            folium.Marker(
-                location=[lat, lon],
-                popup=info
-            ).add_to(marker_cluster)
+    # 그룹별 마커
+    for (lat, lon), group in grouped:
+        if pd.isna(lat) or pd.isna(lon):  # NaN 좌표 건너뛰기
+            continue
 
-        st_folium(m, width=900, height=600)
+        info = "<br>".join(
+            f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 | 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+            for _, row in group.iterrows()
+        )
 
-    except FileNotFoundError:
-        st.error("❌ dataset_14.csv 파일을 찾을 수 없습니다. 앱 폴더에 있는지 확인해주세요.")
+        folium.Marker(
+            location=[lat, lon],
+            popup=info
+        ).add_to(marker_cluster)
+
+    st_folium(m, width=900, height=600)
+
+except Exception as e:
+    st.error(f"에러 발생: {e}")
 
 # -------------------
 # GPT 인터페이스 페이지
