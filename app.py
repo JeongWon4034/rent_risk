@@ -29,7 +29,9 @@ if page == "지도 보기":
     # 점 표시 (클러스터에 추가)
     for _, row in df.iterrows():
         # 같은 좌표에 해당하는 모든 매물 묶기
-        group = df[(df["위도"] == row["위도"]) & (df["경도"] == row["경도"])]
+        group = df[(df["위도"].round(6) == round(row["위도"], 6)) &
+                   (df["경도"].round(6) == round(row["경도"], 6))]
+
 
         # 팝업 HTML 생성
         popup_html = f"<b>{row['단지명']}</b><br>매물 {len(group)}건<br><hr>"
