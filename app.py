@@ -28,34 +28,43 @@ menu = st.sidebar.radio(
 if menu == "📍 지도 보기":
     st.title("📍 수원시 전세사기 위험 매물 지도")
 
-    df = pd.read_csv("dataset_14.csv")
+    try:
+        df = pd.read_csv("dataset_14.csv")
 
-    m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-    marker_cluster = MarkerCluster().add_to(m)
+        # 데이터 미리보기
+        with st.expander("데이터 미리보기"):
+            st.dataframe(df.head())
 
-    # ✅ 여기서부터 최적화 적용
-    df["위도_6"] = df["위도"].round(6)
-    df["경도_6"] = df["경도"].round(6)
-    grouped = df.groupby(["위도_6", "경도_6"])
+        # 지도 생성
+        m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+        marker_cluster = MarkerCluster().add_to(m)
 
-    for (lat, lon), group in grouped:
-        info = ""
-        for _, row in group.iterrows():
-            info += (
-                f"<b>{row['단지명']}</b> | "
-                f"보증금: {row['보증금.만원.']}만원 | "
-                f"전세가율: {row['전세가율']}% | "
-                f"계약유형: {row['계약유형']}<br>"
-            )
+        # ✅ 위경도 6자리 반올림
+        df["위도_6"] = df["위도"].round(6)
+        df["경도_6"] = df["경도"].round(6)
 
-        folium.Marker(
-            location=[lat, lon],
-            popup=info
-        ).add_to(marker_cluster)
+        # ✅ 좌표 그룹핑
+        grouped = df.groupby(["위도_6", "경도_6"])
 
-    st_folium(m, width=900, height=600)
+        # ✅ 그룹별 마커 생성
+        for (lat, lon), group in grouped:
+            info = ""
+            for _, row in group.iterrows():
+                info += (
+                    f"<b>{row['단지명']}</b> | "
+                    f"보증금: {row['보증금.만원.']}만원 | "
+                    f"전세가율: {row['전세가율']}% | "
+                    f"계약유형: {row['계약유형']}<br>"
+                )
 
-except FileNotFoundError:
+            folium.Marker(
+                location=[lat, lon],
+                popup=info
+            ).add_to(marker_cluster)
+
+        st_folium(m, width=900, height=600)
+
+    except FileNotFoundError:
         st.error("❌ dataset_14.csv 파일을 찾을 수 없습니다. 앱 폴더에 있는지 확인해주세요.")
 
 # -------------------
