@@ -61,27 +61,28 @@ if analysis_mode == "🏘️ 매물 현황보기":
     # 🗺️ 인터랙티브 맵
     with tab_map:
         st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
-
-
-                
-                
+        # 지도 생성
         m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-        st_folium(m, width=900, height=600)
 
-                
-                
+        # ✅ 여기서 먼저 선언해야 함
+        marker_cluster = MarkerCluster().add_to(m)
 
-        for _, row in df.iterrows():
+        # 그룹별 마커
+        for (lat, lon), group in grouped:
+            if pd.isna(lat) or pd.isna(lon):  # NaN 좌표 건너뛰기
+                continue
+
+            info = "<br>".join(
+                f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 | 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+                for _, row in group.iterrows()
+            )
+
             folium.Marker(
-                location=[row["위도"], row["경도"]],
-                popup=(
-                    f"<b>{row['단지명']}</b><br>"
-                    f"보증금: {row['보증금.만원.']}만원<br>"
-                    f"전세가율: {row['전세가율']}%<br>"
-                    f"계약유형: {row['계약유형']}"
-                ),
+                location=[lat, lon],
+                popup=info
             ).add_to(marker_cluster)
-        st_folium(m, width=900, height=600)
+
+
 
     # 📄 상세 데이터 조회
     with tab_data:
