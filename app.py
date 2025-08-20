@@ -61,8 +61,15 @@ if analysis_mode == "🏘️ 매물 현황보기":
     # 🗺️ 인터랙티브 맵
     with tab_map:
         st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
+
+
+                
+                
         m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-        marker_cluster = MarkerCluster().add_to(m)
+        st_folium(m, width=900, height=600)
+
+                
+                
 
         for _, row in df.iterrows():
             folium.Marker(
