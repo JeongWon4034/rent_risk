@@ -58,10 +58,11 @@ grouped = df.groupby(["위도_6", "경도_6"])
 
 # --- 6. Main Content ---
 if analysis_mode == "🏘️ 매물 현황보기":
-    tab_report, tab_map, tab_data = st.tabs([
+    tab_report, tab_map, tab_data,  tab_ref = st.tabs([
         "📊 종합 리포트",
         "🗺️ 인터랙티브 맵",
         "📄 상세 데이터 조회"
+        "📚 참조 데이터 보기"
     ])
 
     # 📊 종합 리포트
