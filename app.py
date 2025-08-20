@@ -67,10 +67,8 @@ if menu == "📍 지도 보기":
             ).add_to(marker_cluster)
 
         st_folium(m, width=900, height=600)
-
-    # ✅ except는 try와 같은 레벨
     except Exception as e:
-        st.error(f"에러 발생: {e}")
+        st.error(f"에러발생:{e}")
 
 # -------------------
 # GPT 인터페이스 페이지
