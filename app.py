@@ -1,4 +1,3 @@
-# --- 1. 라이브러리 임포트 ---
 import streamlit as st
 import pandas as pd
 import folium
@@ -9,59 +8,42 @@ import openai
 # ✅ OpenAI API Key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# --- 2. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="수원시 전세사기 위험 매물 지도", page_icon="💰")
 
-
-# --- 지도 자리 먼저 확보 ---
-map_placeholder = st.empty()
-
-# 빈 지도 먼저 출력 (데이터 로딩 전)
-m_init = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-map_placeholder.folium_static(m_init, width=750, height=600)
-
 # --- 데이터 로드 ---
-with st.spinner("📥 매물 데이터를 불러오는 중입니다..."):
-    df = load_data()
+@st.cache_data
+def load_data():
+    df = pd.read_csv("dataset_14.csv")
+    df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
+    df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
+    df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
+    df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
+    df = df.dropna(subset=["위도", "경도"])
+    df["위도_6"] = df["위도"].round(6)
+    df["경도_6"] = df["경도"].round(6)
+    return df
 
-# --- 데이터 기반 지도 다시 생성 ---
-m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-marker_cluster = MarkerCluster().add_to(m)
-
-grouped = df.groupby(["위도_6", "경도_6"])
-for (lat, lon), group in grouped:
-    info = "<br>".join(
-        f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
-        f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
-        for _, row in group.iterrows()
-    )
-    folium.Marker(location=[lat, lon], popup=info).add_to(marker_cluster)
-
-# 데이터 로드 후 지도 교체
-map_click = map_placeholder.folium_static(m, width=750, height=600)
-
-
-# --- 4. 화면 분할 ---
+# --- 화면 분할 ---
 col1, col2 = st.columns([2, 1])
 
 # 🗺️ 지도
 with col1:
     st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
 
+    with st.spinner("📥 매물 데이터를 불러오는 중입니다..."):
+        df = load_data()
+
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
     marker_cluster = MarkerCluster().add_to(m)
 
-    for _, row in df.iterrows():
-        popup_info = (
-            f"단지명: {row['단지명']}<br>"
-            f"보증금: {row['보증금.만원.']}만원<br>"
-            f"전세가율: {row['전세가율']}%<br>"
-            f"계약유형: {row['계약유형']}"
+    grouped = df.groupby(["위도_6", "경도_6"])
+    for (lat, lon), group in grouped:
+        info = "<br>".join(
+            f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
+            f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+            for _, row in group.iterrows()
         )
-        folium.Marker(
-            location=[row["위도"], row["경도"]],
-            popup=popup_info
-        ).add_to(marker_cluster)
+        folium.Marker(location=[lat, lon], popup=info).add_to(marker_cluster)
 
     map_click = st_folium(m, width=750, height=600)
 
@@ -69,11 +51,10 @@ with col1:
 with col2:
     st.subheader("🤖 GPT 위험 설명")
 
-    # 사용자가 마커를 클릭했을 때
     if map_click and map_click.get("last_object_clicked_popup"):
         popup_text = map_click["last_object_clicked_popup"]
 
-        # 매칭되는 데이터 추출
+        # 단지명 매칭
         clicked = None
         for _, row in df.iterrows():
             if row["단지명"] in popup_text:
