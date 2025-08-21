@@ -11,12 +11,85 @@ import plotly.express as px
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 
-# ✅ 맨 위 제목
-st.title("생성형AI기반 전세사기 매물 탐지 시스템")
-st.markdown("전세사기 위험 매물에 대한 지도 시각화 및 통계 분석 리포트")
-
 # --- 2. 페이지 설정 ---
-st.set_page_config(layout="wide", page_title="수원시 전세사기 위험 매물 지도", page_icon="💰")
+st.set_page_config(
+    layout="wide",
+    page_title="🏠 수원시 전세사기 위험 매물 분석",
+    page_icon="🚨"
+)
+
+# --- 3. 프리미엄 CSS (디자인만 가져오기) ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+    * { font-family: 'Inter', sans-serif; }
+    
+    .premium-header {
+        background: linear-gradient(135deg, #ff6b6b, #feca57);
+        padding: 2rem;
+        border-radius: 16px;
+        text-align: center;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    
+    .premium-metric {
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.2);
+        border-radius: 14px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+    .premium-metric:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-color);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    }
+    
+    .metric-number {
+        font-size: 2.4rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        background: linear-gradient(135deg,#ff6b6b,#feca57);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.7;
+    }
+
+    .insight-card {
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.2);
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# --- 4. 샘플 데이터 로드 (데모용) ---
+df = pd.DataFrame({
+    "전세가율": [65, 70, 85, 90, 55, 78, 82, 93, 68, 74]
+})
+
+
+# --- 5. 프리미엄 헤더 ---
+st.markdown("""
+<div class="premium-header">
+    <h1>🚨 수원시 전세사기 위험 매물 분석 대시보드</h1>
+    <p>AI 기반 데이터로 전세사기 위험을 한눈에 파악하세요</p>
+</div>
+""", unsafe_allow_html=True)
+
 
 # --- 3. 데이터 로드 ---
 @st.cache_data
