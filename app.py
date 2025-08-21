@@ -5,43 +5,13 @@ import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 import openai
+import plotly.express as px
 
 # ✅ OpenAI API Key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-#--- 페이지 탭 구성 ---#
-tab_map, tab_report = st.tabs(["🗺️ 전세사기 위험 지도", "📊 종합 리포트"])
-
-# 🗺️ 지도 탭
-with tab_map:
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
-        # 지도 코드 (folium) 넣기
-
-    with col2:
-        st.subheader("🤖 GPT 위험 설명")
-        # GPT 분석 코드 넣기
-
-# 📊 리포트 탭
-with tab_report:
-    st.subheader("📊 주요 지표 요약")
-
-    col1, col2, col3 = st.columns(3)
-    with col1: st.metric("총 매물 수", len(df))
-    with col2: st.metric("평균 전세가율", f"{df['전세가율'].mean():.2f}%")
-    with col3: st.metric("최고 전세가율", f"{df['전세가율'].max():.2f}%")
-
-    st.markdown("### 전세가율 분포")
-    import plotly.express as px
-    fig = px.histogram(
-        df, x="전세가율", nbins=30,
-        title="전세가율 분포 히스토그램",
-        labels={"전세가율": "전세가율 (%)"}
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
+# --- 2. 페이지 설정 ---
+st.set_page_config(layout="wide", page_title="수원시 전세사기 위험 매물 지도", page_icon="💰")
 
 # --- 3. 데이터 로드 ---
 @st.cache_data
@@ -55,7 +25,38 @@ def load_data():
     return df
 
 with st.spinner("📥 매물 데이터를 불러오는 중입니다..."):
-    df = load_data()
+    df = load_data()   # ✅ 반드시 탭 만들기 전에 df 로드
+
+# --- 4. 페이지 탭 구성 ---
+tab_map, tab_report = st.tabs(["🗺️ 전세사기 위험 지도", "📊 종합 리포트"])
+
+# 🗺️ 지도 + GPT 탭
+with tab_map:
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
+        # 👉 지도 코드 (folium) 여기에 넣기
+    with col2:
+        st.subheader("🤖 GPT 위험 설명")
+        # 👉 GPT 코드 넣기
+
+# 📊 리포트 탭
+with tab_report:
+    st.subheader("📊 주요 지표 요약")
+
+    col1, col2, col3 = st.columns(3)
+    with col1: st.metric("총 매물 수", len(df))
+    with col2: st.metric("평균 전세가율", f"{df['전세가율'].mean():.2f}%")
+    with col3: st.metric("최고 전세가율", f"{df['전세가율'].max():.2f}%")
+
+    st.markdown("### 전세가율 분포")
+    fig = px.histogram(
+        df, x="전세가율", nbins=30,
+        title="전세가율 분포 히스토그램",
+        labels={"전세가율": "전세가율 (%)"}
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # --- 4. 화면 분할 ---
 col1, col2 = st.columns([2, 1])
