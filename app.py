@@ -12,16 +12,34 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 # --- 2. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="수원시 전세사기 위험 매물 지도", page_icon="💰")
 
-# --- 3. 데이터 로드 ---
-@st.cache_data
-def load_data():
-    df = pd.read_csv("dataset_14.csv")
-    df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
-    df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
-    df = df.dropna(subset=["위도", "경도"])
-    return df
 
-df = load_data()
+# --- 지도 자리 먼저 확보 ---
+map_placeholder = st.empty()
+
+# 빈 지도 먼저 출력 (데이터 로딩 전)
+m_init = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+map_placeholder.folium_static(m_init, width=750, height=600)
+
+# --- 데이터 로드 ---
+with st.spinner("📥 매물 데이터를 불러오는 중입니다..."):
+    df = load_data()
+
+# --- 데이터 기반 지도 다시 생성 ---
+m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+marker_cluster = MarkerCluster().add_to(m)
+
+grouped = df.groupby(["위도_6", "경도_6"])
+for (lat, lon), group in grouped:
+    info = "<br>".join(
+        f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
+        f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+        for _, row in group.iterrows()
+    )
+    folium.Marker(location=[lat, lon], popup=info).add_to(marker_cluster)
+
+# 데이터 로드 후 지도 교체
+map_click = map_placeholder.folium_static(m, width=750, height=600)
+
 
 # --- 4. 화면 분할 ---
 col1, col2 = st.columns([2, 1])
