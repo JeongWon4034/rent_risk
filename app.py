@@ -4,51 +4,26 @@ import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
-import plotly.express as px
 import openai
 
-# ✅ OpenAI API Key (Streamlit Cloud secrets 사용)
+# ✅ OpenAI API Key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# --- 2. 페이지 세팅 ---
-st.set_page_config(
-    layout="wide", 
-    page_title="수원시 전세사기 위험 매물 지도", 
-    page_icon="💰"
-)
-
-st.markdown("""
-<div style="background:#f8f9fa; padding:1rem; border-radius:12px; text-align:center;">
-    <h1 style="margin:0; font-size:2rem; font-weight:700; color:#333;">
-        💰 수원시 전세사기 위험 매물 분석 & GPT 상담
-    </h1>
-</div>
-""", unsafe_allow_html=True)
+# --- 2. 페이지 설정 ---
+st.set_page_config(layout="wide", page_title="수원시 전세사기 위험 매물 지도", page_icon="💰")
 
 # --- 3. 데이터 로드 ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("dataset_14.csv")
-
-    # 숫자 변환
     df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
     df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
-    df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
-    df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
-
-    # NaN 좌표 제거
     df = df.dropna(subset=["위도", "경도"])
-
-    # 중복 좌표 처리
-    df["위도_6"] = df["위도"].round(6)
-    df["경도_6"] = df["경도"].round(6)
-
     return df
 
 df = load_data()
-grouped = df.groupby(["위도_6", "경도_6"])
 
-# --- 4. 메인 화면 (지도 + GPT 상담 나란히) ---
+# --- 4. 화면 분할 ---
 col1, col2 = st.columns([2, 1])
 
 # 🗺️ 지도
@@ -58,50 +33,63 @@ with col1:
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
     marker_cluster = MarkerCluster().add_to(m)
 
-    for (lat, lon), group in grouped:
-        if pd.isna(lat) or pd.isna(lon):
-            continue
-        info = "<br>".join(
-            f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
-            f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
-            for _, row in group.iterrows()
+    for _, row in df.iterrows():
+        popup_info = (
+            f"단지명: {row['단지명']}<br>"
+            f"보증금: {row['보증금.만원.']}만원<br>"
+            f"전세가율: {row['전세가율']}%<br>"
+            f"계약유형: {row['계약유형']}"
         )
-        folium.Marker(location=[lat, lon], popup=info).add_to(marker_cluster)
+        folium.Marker(
+            location=[row["위도"], row["경도"]],
+            popup=popup_info
+        ).add_to(marker_cluster)
 
-    st_folium(m, width=750, height=600)
+    map_click = st_folium(m, width=750, height=600)
 
 # 🤖 GPT 상담
 with col2:
-    st.subheader("🤖 GPT 상담 서비스")
+    st.subheader("🤖 GPT 위험 설명")
 
-    if "messages" not in st.session_state:
-        st.session_state["messages"] = []
+    # 사용자가 마커를 클릭했을 때
+    if map_click and map_click.get("last_object_clicked_popup"):
+        popup_text = map_click["last_object_clicked_popup"]
 
-    # 입력 폼
-    with st.form("chat_form"):
-        user_input = st.text_area("궁금한 점을 입력하세요", "")
-        submitted = st.form_submit_button("상담 요청")
+        # 매칭되는 데이터 추출
+        clicked = None
+        for _, row in df.iterrows():
+            if row["단지명"] in popup_text:
+                clicked = row
+                break
 
-    if submitted and user_input:
-        try:
-            response = openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "당신은 전세사기 예방 전문가입니다. 법적·실무적 조언을 쉽고 정확하게 해주세요."},
-                    {"role": "user", "content": user_input}
-                ]
+        if clicked is not None:
+            st.markdown(f"### 🏠 선택된 매물: {clicked['단지명']}")
+            st.markdown(
+                f"- 보증금: {clicked['보증금.만원.']}만원\n"
+                f"- 전세가율: {clicked['전세가율']}%\n"
+                f"- 계약유형: {clicked['계약유형']}"
             )
-            gpt_reply = response.choices[0].message.content.strip()
-            st.session_state["messages"].append({"role": "user", "content": user_input})
-            st.session_state["messages"].append({"role": "assistant", "content": gpt_reply})
-        except Exception as e:
-            st.error(f"❌ GPT 호출 실패: {e}")
 
-    # 대화 기록 출력
-    if st.session_state["messages"]:
-        st.markdown("### 💬 상담 내역")
-        for msg in st.session_state["messages"]:
-            if msg["role"] == "user":
-                st.markdown(f"**🙋‍♂️ 사용자:** {msg['content']}")
-            else:
-                st.markdown(f"**🤖 GPT:** {msg['content']}")
+            try:
+                response = openai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "당신은 부동산 전세사기 위험 분석 전문가입니다."},
+                        {"role": "system", "content": "매물 정보를 바탕으로 위험 요인을 설명하고, 주의해야 할 사항을 간단히 조언하세요."},
+                        {"role": "user", "content": f"단지명: {clicked['단지명']}, "
+                                                    f"보증금: {clicked['보증금.만원.']}만원, "
+                                                    f"전세가율: {clicked['전세가율']}%, "
+                                                    f"계약유형: {clicked['계약유형']} "
+                                                    f"이 매물의 전세사기 위험을 설명해줘."}
+                    ]
+                )
+                gpt_reply = response.choices[0].message.content.strip()
+                st.markdown("### 💬 GPT 분석 결과")
+                st.write(gpt_reply)
+
+            except Exception as e:
+                st.error(f"❌ GPT 호출 실패: {e}")
+        else:
+            st.info("지도에서 매물을 클릭하면 상세 위험 설명이 표시됩니다.")
+    else:
+        st.info("👉 왼쪽 지도에서 매물을 클릭하세요.")
