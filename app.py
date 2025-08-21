@@ -1,164 +1,107 @@
-# --- 1. Library Imports ---
+# --- 1. 라이브러리 임포트 ---
 import streamlit as st
 import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 import plotly.express as px
+import openai
 
-# --- 2. Page Configuration ---
+# ✅ OpenAI API Key (Streamlit Cloud secrets 사용)
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# --- 2. 페이지 세팅 ---
 st.set_page_config(
     layout="wide", 
     page_title="수원시 전세사기 위험 매물 지도", 
     page_icon="💰"
 )
 
-# --- 3. Premium Header ---
 st.markdown("""
-<div style="background: var(--secondary-background-color); 
-            padding: 2rem; border-radius: 15px; 
-            text-align: center; 
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1);">
-    <h1 style="margin:0; font-size:2.2rem; font-weight:700; color: var(--text-color);">
-        💰 수원시 전세사기 위험 매물 분석 시스템
+<div style="background:#f8f9fa; padding:1rem; border-radius:12px; text-align:center;">
+    <h1 style="margin:0; font-size:2rem; font-weight:700; color:#333;">
+        💰 수원시 전세사기 위험 매물 분석 & GPT 상담
     </h1>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 4. Sidebar ---
-analysis_mode = st.sidebar.radio(
-    "🔍 분석 모드 선택",
-    ["🏘️ 매물 현황보기", "🔄 GPT 챗봇 상담"]
-)
-
-# --- 5. Load Data ---
+# --- 3. 데이터 로드 ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("dataset_14.csv")
 
-    # 숫자형 변환
+    # 숫자 변환
     df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
     df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
     df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
     df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
 
-    # NaN 제거
+    # NaN 좌표 제거
     df = df.dropna(subset=["위도", "경도"])
 
-    # 소수점 6자리 반올림으로 중복 좌표 처리
+    # 중복 좌표 처리
     df["위도_6"] = df["위도"].round(6)
     df["경도_6"] = df["경도"].round(6)
 
     return df
 
 df = load_data()
-
-# ✅ 그룹핑 (지도용)
 grouped = df.groupby(["위도_6", "경도_6"])
 
-# --- 6. Main Content ---
-if analysis_mode == "🏘️ 매물 현황보기":
-    tab_report, tab_map, tab_data,  tab_ref = st.tabs([
-        "📊 종합 리포트",
-        "🗺️ 인터랙티브 맵",
-        "📄 상세 데이터 조회",
-        "📚 참조 데이터 보기"
-    ])
+# --- 4. 메인 화면 (지도 + GPT 상담 나란히) ---
+col1, col2 = st.columns([2, 1])
 
-    # 📊 종합 리포트
-    with tab_report:
-        st.subheader("📊 주요 지표 요약")
+# 🗺️ 지도
+with col1:
+    st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
 
-        col1, col2, col3 = st.columns(3)
-        with col1: st.metric("총 매물 수", len(df))
-        with col2: st.metric("평균 전세가율", f"{df['전세가율'].mean():.2f}%")
-        with col3: st.metric("최고 전세가율", f"{df['전세가율'].max():.2f}%")
+    m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+    marker_cluster = MarkerCluster().add_to(m)
 
-        st.markdown("### 전세가율 분포")
-        fig = px.histogram(
-            df, x="전세가율", nbins=30, 
-            title="전세가율 분포 히스토그램", 
-            labels={"전세가율": "전세가율 (%)"}
+    for (lat, lon), group in grouped:
+        if pd.isna(lat) or pd.isna(lon):
+            continue
+        info = "<br>".join(
+            f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
+            f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+            for _, row in group.iterrows()
         )
-        st.plotly_chart(fig, use_container_width=True)
+        folium.Marker(location=[lat, lon], popup=info).add_to(marker_cluster)
 
-    # 🗺️ 인터랙티브 맵
-    with tab_map:
-        st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
+    st_folium(m, width=750, height=600)
 
-        # 지도 생성
-        m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-        marker_cluster = MarkerCluster().add_to(m)
+# 🤖 GPT 상담
+with col2:
+    st.subheader("🤖 GPT 상담 서비스")
 
-        # 그룹별 마커
-        for (lat, lon), group in grouped:
-            if pd.isna(lat) or pd.isna(lon):  # NaN 좌표 건너뛰기
-                continue
+    if "messages" not in st.session_state:
+        st.session_state["messages"] = []
 
-            info = "<br>".join(
-                f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
-                f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
-                for _, row in group.iterrows()
-            )
+    # 입력 폼
+    with st.form("chat_form"):
+        user_input = st.text_area("궁금한 점을 입력하세요", "")
+        submitted = st.form_submit_button("상담 요청")
 
-            folium.Marker(
-                location=[lat, lon],
-                popup=info
-            ).add_to(marker_cluster)
-
-        st_folium(m, width=900, height=600)
-
-    # 📄 상세 데이터 조회
-    with tab_data:
-        st.subheader("📄 상세 데이터 조회 및 다운로드")
-
-        cause_filter = st.multiselect(
-            "계약유형 선택", 
-            options=df["계약유형"].unique(), 
-            default=df["계약유형"].unique()
-        )
-
-        filtered = df[df["계약유형"].isin(cause_filter)]
-
-        st.dataframe(filtered, use_container_width=True, height=500)
-
-        csv = filtered.to_csv(index=False, encoding="utf-8-sig")
-        st.download_button(
-            "📥 CSV 다운로드", csv, "rent_risk_filtered.csv", "text/csv"
-        )
-         # 📚 참조 데이터 보기
-    with tab_ref:
-        st.subheader("📚 수원시 관련 참조 데이터")
-
-        files = {
-            "Agencies": "agencies.csv",
-            "Deposit Accidents (2024.07)": "deposit_accidents_202407.csv",
-            "Fraud House Location": "fraud_house_location.csv",
-            "Public Rental Housing": "gondgondimdae.csv",
-            "Housing Status (2025-04-30)": "housing_status_20250430.csv",
-            "Population Mobility (2020-2024)": "pop_mobility_2020_2024.csv",
-            "Population by Dong (2021-2024)": "population_by_dong_2021_2024.csv",
-            "Safety Grade (2021-2024)": "safety_grade_2021_2024.csv",
-        }
-
-        selected = st.selectbox("📂 확인할 참조 데이터셋 선택", list(files.keys()))
-        file_path = files[selected]
-
+    if submitted and user_input:
         try:
-            df_ref = pd.read_csv(file_path)
-            st.write(f"### {selected}")
-            st.dataframe(df_ref, use_container_width=True, height=500)
-
-            csv = df_ref.to_csv(index=False, encoding="utf-8-sig")
-            st.download_button(
-                f"📥 {selected} 다운로드",
-                csv,
-                file_name=file_path,
-                mime="text/csv"
+            response = openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "당신은 전세사기 예방 전문가입니다. 법적·실무적 조언을 쉽고 정확하게 해주세요."},
+                    {"role": "user", "content": user_input}
+                ]
             )
+            gpt_reply = response.choices[0].message.content.strip()
+            st.session_state["messages"].append({"role": "user", "content": user_input})
+            st.session_state["messages"].append({"role": "assistant", "content": gpt_reply})
         except Exception as e:
-            st.error(f"파일을 불러올 수 없습니다: {e}")
+            st.error(f"❌ GPT 호출 실패: {e}")
 
-else:  # 🔄 GPT 챗봇 상담
-    st.subheader("🔄 GPT 챗봇 상담")
-    st.info("향후 GPT 기반 상담 기능이 여기에 추가될 예정입니다.")
+    # 대화 기록 출력
+    if st.session_state["messages"]:
+        st.markdown("### 💬 상담 내역")
+        for msg in st.session_state["messages"]:
+            if msg["role"] == "user":
+                st.markdown(f"**🙋‍♂️ 사용자:** {msg['content']}")
+            else:
+                st.markdown(f"**🤖 GPT:** {msg['content']}")
