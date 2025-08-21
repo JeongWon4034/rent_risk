@@ -80,7 +80,7 @@ with col2:
         if key not in st.session_state["gpt_cache"]:
             try:
                 response = openai.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-3.5-turbo",
                     messages=[
                         {"role": "system", "content": "당신은 부동산 전세사기 위험 분석 전문가입니다."},
                         {"role": "system", "content": "매물 정보를 바탕으로 위험 요인을 두세 문장으로 간단히 설명하세요."},
