@@ -12,7 +12,7 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 
 # ✅ 맨 위 제목
-st.title("💰 생성형AI기반 전세사기 매물 탐지")
+st.title("생성형AI기반 전세사기 매물 탐지 시스템")
 st.markdown("전세사기 위험 매물에 대한 지도 시각화 및 통계 분석 리포트")
 
 # --- 2. 페이지 설정 ---
