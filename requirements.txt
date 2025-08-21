@@ -7,3 +7,4 @@ pyproj
 matplotlib
 plotly
 numpy
+openai
